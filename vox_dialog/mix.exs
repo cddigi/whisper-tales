@@ -58,6 +58,8 @@ defmodule VoxDialog.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
+      # HTTP client for TTS API calls
+      {:httpoison, "~> 2.0"},
       # Machine Learning dependencies for local speech recognition
       {:bumblebee, "~> 0.5.0"},
       {:nx, "~> 0.7.0"},

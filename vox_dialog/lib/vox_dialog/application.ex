@@ -22,6 +22,8 @@ defmodule VoxDialog.Application do
       VoxDialog.VoiceProcessing.SessionSupervisor,
       # Whisper model server (loads model asynchronously)
       VoxDialog.SpeechRecognition.WhisperServer,
+      # Chatterbox TTS server (checks server availability asynchronously)
+      VoxDialog.SpeechSynthesis.ChatterboxServer,
       # Speech recognition transcription worker
       VoxDialog.SpeechRecognition.TranscriptionWorker,
       # Start to serve requests, typically the last entry
