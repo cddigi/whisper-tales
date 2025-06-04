@@ -1,0 +1,94 @@
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/doc/
+
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Temporary files, for example, from tests.
+/tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+vox_dialog-*.tar
+
+# Ignore assets that are produced by build tools.
+/priv/static/assets/
+
+# Ignore digested assets cache.
+/priv/static/cache_manifest.json
+
+# In case you use Node.js/npm, you want to ignore these.
+npm-debug.log
+/assets/node_modules/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# Database files (if using SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+/log/
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Audio files and temporary processing files
+/tmp/audio/
+whisper_*.wav
+whisper_*.webm
+whisper_*.mp3
+whisper_*.txt
+
+# Hugging Face cache (if using local models)
+.cache/
+/priv/ml_cache/
+
+# Bumblebee model cache
+/priv/bumblebee_cache/
+
+# Python cache (for Whisper CLI)
+__pycache__/
+*.py[cod]
+*$py.class
+
