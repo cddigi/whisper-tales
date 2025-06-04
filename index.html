@@ -21,6 +21,11 @@
                 line-height: 1.6;
             }
 
+            .voice-recording {
+                padding: 4rem 2rem;
+                text-align: center;
+            }
+
             .hero {
                 background-color: var(--primary-color);
                 color: white;
@@ -116,6 +121,64 @@
                 </div>
             </div>
         </section>
+
+        <section class="voice-recording">
+    </h2>        <h2>Record Your Voice</h2>
+   </p>         <p>Click the button below to start recording your voice. Once done, you can stop and play back your recording.</p>
+            <div id="controls">
+                <button id="recordButton">Start Recording</button>
+                <audio id="audioPlayback" controls style="display:none;"></audio>
+            </div>
+        </section>
+
+        <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const recordButton = document.getElementById('recordButton');
+    const audioPlayback = document.getElementById('audioPlayback');
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    recordButton.addEventListener('click', async () => {
+        if (recordButton.textContent === 'Start Recording') {
+            // Start recording
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayback.src = audioUrl;
+                audioPlayback.style.display = 'block';
+            };
+
+            recordButton.textContent = 'Stop Recording';
+            mediaRecorder.start();
+        } else {
+            // Stop recording
+            recordButton.textContent = 'Start Recording';
+            mediaRecorder.stop();
+
+            // Store the file (this part depends on your storage solution)
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const url = URL.createObjectURL(audioBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'recording.wav';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Reset for next recording
+            audioChunks = [];
+        }
+    });
+});
+</script>
 
         <section class="privacy-commitment">
             <h2>Our Privacy Commitment</h2>
