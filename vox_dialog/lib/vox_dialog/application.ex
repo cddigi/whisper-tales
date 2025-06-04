@@ -26,6 +26,8 @@ defmodule VoxDialog.Application do
       VoxDialog.SpeechSynthesis.ChatterboxServer,
       # Speech recognition transcription worker
       VoxDialog.SpeechRecognition.TranscriptionWorker,
+      # Module manager for dynamic module loading/unloading
+      VoxDialog.ModuleManager,
       # Start to serve requests, typically the last entry
       VoxDialogWeb.Endpoint
     ]

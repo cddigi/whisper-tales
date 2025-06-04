@@ -94,7 +94,10 @@ The application uses **local Chatterbox TTS** with multi-device support via HTTP
 ### ChatterboxServer (`lib/vox_dialog/speech_synthesis/chatterbox_server.ex`)
 - Auto-detects available PyTorch devices (CUDA/MPS/CPU) on startup
 - Executes Chatterbox TTS directly via Python scripts with uv
-- Handles text-to-speech synthesis with automatic device selection
+- Uses proper Chatterbox API with exaggeration and cfg_weight parameters
+- Supports accent styles without text prompts (prevents accent text in audio)
+- Handles long text with automatic chunking (800+ characters)
+- Dynamic timeout scaling (1-5 minutes based on text length)
 - Manages temporary file creation and cleanup for audio output
 - Returns high-quality audio data for playback in the application
 

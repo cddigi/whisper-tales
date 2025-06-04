@@ -15,6 +15,10 @@ defmodule VoxDialog.Voice.AudioClip do
     field :transcribed_text, :string
     field :ai_response, :string
     field :metadata, :map, default: %{}
+    field :audio_type, :string, default: "recording"
+    field :source_text, :string
+    field :accent, :string
+    field :voice_settings, :map, default: %{}
 
     belongs_to :voice_session, VoxDialog.Voice.VoiceSession,
       foreign_key: :session_id, references: :id
@@ -28,11 +32,13 @@ defmodule VoxDialog.Voice.AudioClip do
     |> cast(attrs, [
       :session_id, :clip_id, :user_id, :audio_data, :duration_ms, 
       :format, :sample_rate, :file_size, :recorded_at, 
-      :transcription_status, :transcribed_text, :ai_response, :metadata
+      :transcription_status, :transcribed_text, :ai_response, :metadata,
+      :audio_type, :source_text, :accent, :voice_settings
     ])
     |> validate_required([:session_id, :clip_id, :user_id, :audio_data, :recorded_at])
     |> validate_inclusion(:transcription_status, ["pending", "processing", "completed", "failed"])
     |> validate_inclusion(:format, ["webm", "wav", "mp3", "ogg"])
+    |> validate_inclusion(:audio_type, ["recording", "tts"])
     |> unique_constraint(:clip_id)
   end
 

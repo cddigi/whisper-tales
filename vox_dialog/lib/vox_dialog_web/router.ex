@@ -17,9 +17,10 @@ defmodule VoxDialogWeb.Router do
   scope "/", VoxDialogWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", ModuleDashboardLive, :index
     live "/voice", VoiceSessionLive, :index
     live "/clips", AudioClipsLive, :index
+    live "/tts", TTSLive, :index
   end
 
   # Other scopes may use custom stacks.
