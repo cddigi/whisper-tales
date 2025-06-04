@@ -36,6 +36,23 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
   def status do
     GenServer.call(@name, :status, 5_000)
   end
+  
+  @doc """
+  Alias for transcribe/1 to maintain compatibility.
+  """
+  def transcribe_audio(audio_clip) do
+    transcribe(audio_clip.audio_data)
+  end
+  
+  @doc """
+  Checks if Whisper CLI is available.
+  """
+  def check_availability do
+    case GenServer.call(@name, :ready?, 5_000) do
+      true -> :ok
+      false -> {:error, :not_available}
+    end
+  end
 
   # GenServer Callbacks
 

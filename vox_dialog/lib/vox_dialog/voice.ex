@@ -27,6 +27,13 @@ defmodule VoxDialog.Voice do
   def get_voice_session_by_session_id(session_id) do
     Repo.get_by(VoiceSession, session_id: session_id)
   end
+  
+  @doc """
+  Gets a voice session by database ID.
+  """
+  def get_voice_session(id) do
+    Repo.get(VoiceSession, id)
+  end
 
   @doc """
   Updates a voice session.

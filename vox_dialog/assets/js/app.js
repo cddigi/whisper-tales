@@ -22,9 +22,11 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 import AudioProcessor from "./hooks/audio_processor"
+import { AudioControls } from "./hooks/audio_controls"
 
 let Hooks = {
-  AudioProcessor: AudioProcessor
+  AudioProcessor: AudioProcessor,
+  AudioControls: AudioControls
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
