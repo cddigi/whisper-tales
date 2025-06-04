@@ -32,12 +32,24 @@ VoxDialog is a Phoenix LiveView application that provides real-time voice record
 ### Development Setup
 ```bash
 # Install system dependencies (required before mix setup)
-pip3 install openai-whisper
-brew install ffmpeg  # macOS
+brew install uv ffmpeg  # macOS (uv manages Python and packages)
+
+# Setup Python environment with uv (uses pyproject.toml)
+uv python install 3.11      # Install Python 3.11
+uv sync                      # Create venv and install all dependencies
+
+# Check device compatibility
+uv run python device_utils.py  # Shows available PyTorch devices
 
 # Phoenix setup
 mix setup                    # Full setup: deps, DB, assets
 mix phx.server              # Start development server
+
+# Test Chatterbox TTS (automatically detects and uses best available device):
+# - CUDA (NVIDIA GPUs) - highest priority
+# - MPS (Apple Silicon M1/M2/M3) - second priority  
+# - CPU (fallback) - lowest priority
+uv run python generate_midwest_samples.py  # Test with samples
 ```
 
 ### Database Operations
@@ -69,13 +81,38 @@ mix assets.deploy           # Build and minify for production
 
 The application uses **CLI Whisper** (not Bumblebee/Nx) for speech recognition:
 
+## Text-to-Speech Implementation
+
+The application uses **local Chatterbox TTS** with multi-device support via HTTP API for speech synthesis:
+
+### Multi-Device Support
+- **CUDA GPUs**: NVIDIA GPU acceleration with automatic memory management
+- **Apple Silicon (MPS)**: M1/M2/M3 Neural Engine acceleration via Metal Performance Shaders  
+- **CPU Fallback**: Compatible with any system without GPU acceleration
+- **Cross-Device Loading**: Automatic tensor mapping for models saved on different devices
+
+### ChatterboxServer (`lib/vox_dialog/speech_synthesis/chatterbox_server.ex`)
+- Auto-detects available PyTorch devices (CUDA/MPS/CPU) on startup
+- Executes Chatterbox TTS directly via Python scripts with uv
+- Handles text-to-speech synthesis with automatic device selection
+- Manages temporary file creation and cleanup for audio output
+- Returns high-quality audio data for playback in the application
+
 ### WhisperServer (`lib/vox_dialog/speech_recognition/whisper_server.ex`)
 - Checks CLI tool availability on startup (`whisper --help`, `ffmpeg -version`)
 - Manages temporary audio file creation and cleanup
 - Handles audio format conversion (WebM → WAV via FFmpeg)
 - Runs system commands: `whisper audio.wav --model tiny --output_format txt`
 
-### Audio Processing Flow
+### TTS Processing Flow
+1. **Text Input**: Validate text length (max 1000 characters)
+2. **Device Detection**: Auto-select best available PyTorch device
+3. **Python Execution**: Run Chatterbox TTS script via uv with text input
+4. **Audio Generation**: Direct model inference with device acceleration
+5. **File Management**: Read generated WAV file and cleanup temp files
+6. **Audio Response**: Return high-quality WAV audio data for client playback
+
+### Audio Processing Flow (Speech Recognition)
 1. **Format Detection**: Binary header analysis (WebM, WAV, MP3, etc.)
 2. **FFmpeg Conversion**: Convert to 16kHz mono WAV for optimal Whisper performance
 3. **CLI Execution**: System.cmd with 2-minute timeout
@@ -118,10 +155,12 @@ The application uses **CLI Whisper** (not Bumblebee/Nx) for speech recognition:
 ## Environment Requirements
 
 ### System Dependencies
-- **Python 3** with `openai-whisper` package
+- **uv** for Python package management
+- **Python 3.11+** with `openai-whisper` and `gguf-connector` packages (managed by uv)
 - **FFmpeg** for audio format conversion
 - **PostgreSQL** for binary audio storage
 - **Elixir 1.14+** and **Phoenix 1.7+**
+- **Chatterbox TTS server** running at http://127.0.0.1:7860
 
 ### Audio Processing Constraints
 - Maximum file size: 25MB per audio clip

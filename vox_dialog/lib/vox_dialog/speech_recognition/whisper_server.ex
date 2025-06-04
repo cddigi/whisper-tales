@@ -110,10 +110,10 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
   # Private Functions
 
   defp check_cli_tools do
-    # Check if Whisper CLI is available
-    case System.cmd("whisper", ["--help"], stderr_to_stdout: true) do
+    # Check if Whisper CLI is available via uv
+    case System.cmd("uv", ["run", "whisper", "--help"], stderr_to_stdout: true) do
       {_output, 0} ->
-        Logger.info("✅ Whisper CLI available")
+        Logger.info("✅ Whisper CLI available via uv")
         
         # Check if FFmpeg is available
         case System.cmd("ffmpeg", ["-version"], stderr_to_stdout: true) do
@@ -127,7 +127,7 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
         end
         
       {_error, _} ->
-        Logger.error("❌ Whisper CLI not available")
+        Logger.error("❌ Whisper CLI not available via uv")
         {:error, :whisper_not_found}
     end
   end
@@ -214,8 +214,8 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
     # Create output directory
     output_dir = Path.dirname(audio_file_path)
     
-    # Run Whisper CLI with optimal settings
-    case System.cmd("whisper", [
+    # Run Whisper CLI with optimal settings via uv
+    case System.cmd("uv", ["run", "whisper",
       audio_file_path,
       "--model", "tiny",           # Fast, lightweight model
       "--language", "en",          # English (can be auto-detected by removing this)

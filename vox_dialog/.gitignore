@@ -75,10 +75,9 @@ npm-debug.log
 
 # Audio files and temporary processing files
 /tmp/audio/
-whisper_*.wav
-whisper_*.webm
-whisper_*.mp3
-whisper_*.txt
+*.wav
+*.webm
+*.mp3
 
 # Hugging Face cache (if using local models)
 .cache/
@@ -91,4 +90,3 @@ whisper_*.txt
 __pycache__/
 *.py[cod]
 *$py.class
-

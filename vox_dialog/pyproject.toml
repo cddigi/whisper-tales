@@ -1,0 +1,16 @@
+[project]
+name = "vox-dialog-python"
+version = "0.1.0"
+description = "Python dependencies for VoxDialog speech processing"
+requires-python = ">=3.11"
+dependencies = [
+    "openai-whisper>=20231117",
+    "chatterbox-tts>=0.1.0",
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "setuptools>=65.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
