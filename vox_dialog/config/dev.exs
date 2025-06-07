@@ -8,7 +8,7 @@ config :vox_dialog, :whisper,
   backend: :faster,  # :vanilla or :faster
   fallback_backend: :vanilla,
   faster_whisper: %{
-    model_size: "tiny",
+    model_size: "tiny",  # Can be any model from the available list
     compute_type: "float32",  # Always use float32 for consistency
     beam_size: 5,
     vad_filter: true,
