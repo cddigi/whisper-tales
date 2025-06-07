@@ -20,13 +20,33 @@ defmodule VoxDialogWeb.VoiceSessionLive do
       Phoenix.PubSub.subscribe(VoxDialog.PubSub, "transcription_results")
     end
     
+    # Get available backends
+    available_backends = if connected?(socket) do
+      VoxDialog.SpeechRecognition.available_backends()
+    else
+      []
+    end
+    
+    # Get current backend info
+    current_backend = if connected?(socket) do
+      case VoxDialog.SpeechRecognition.get_backend_info() do
+        {:ok, info} -> info
+        _ -> nil
+      end
+    else
+      nil
+    end
+    
     {:ok, assign(socket,
       session_id: session_id,
       user_id: user_id,
       recording_state: :idle,
       conversation_history: [],
       audio_level: 0.0,
-      detected_sounds: []
+      detected_sounds: [],
+      available_backends: available_backends,
+      current_backend: current_backend,
+      backend_switching: false
     )}
   end
 
@@ -34,11 +54,71 @@ defmodule VoxDialogWeb.VoiceSessionLive do
   def render(assigns) do
     ~H"""
     <div class="voice-session-container">
+      <!-- Backend Selection Controls -->
+      <div class="backend-controls mb-6 p-4 bg-gray-50 rounded-lg">
+        <h3 class="text-lg font-semibold mb-3">Speech Recognition Backend</h3>
+        <%= if @current_backend do %>
+          <div class="current-backend mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Current:</span>
+              <span class="font-medium text-blue-600"><%= @current_backend.name %></span>
+              <%= if @current_backend[:description] do %>
+                <span class="text-xs text-gray-500">- <%= @current_backend.description %></span>
+              <% end %>
+            </div>
+            <%= if @current_backend[:features] do %>
+              <div class="mt-1">
+                <span class="text-xs text-gray-500">Features: <%= Enum.join(@current_backend.features, ", ") %></span>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+        
+        <%= if length(@available_backends) > 1 do %>
+          <div class="backend-selector">
+            <label for="backend-select" class="text-sm font-medium text-gray-700">Switch Backend:</label>
+            <div class="flex items-center gap-2 mt-1">
+              <select 
+                id="backend-select" 
+                phx-change="switch_backend" 
+                name="backend"
+                disabled={@backend_switching}
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <%= for backend <- @available_backends do %>
+                  <option 
+                    value={backend} 
+                    selected={@current_backend && @current_backend.backend == backend}
+                  >
+                    <%= String.capitalize(to_string(backend)) %> Whisper
+                  </option>
+                <% end %>
+              </select>
+              <%= if @backend_switching do %>
+                <div class="flex items-center gap-1">
+                  <svg class="animate-spin h-4 w-4 text-blue-600" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span class="text-sm text-blue-600">Switching...</span>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <div class="text-sm text-gray-500">
+            Only one backend available. Install faster-whisper for additional options.
+          </div>
+        <% end %>
+      </div>
+      
+      <!-- Session Header -->
       <div class="session-header">
         <h1 class="text-2xl font-bold">VoxDialog Voice Session</h1>
         <p class="text-sm text-gray-600">Session ID: <%= @session_id %></p>
       </div>
       
+      <!-- Audio Controls -->
       <div class="audio-controls mt-8">
         <div class="recording-status mb-4">
           <div class="flex items-center">
@@ -59,15 +139,22 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         
         <button
           phx-click="toggle_recording"
+          disabled={@backend_switching}
           class={[
             "recording-button",
-            @recording_state == :recording && "recording-button-active"
+            @recording_state == :recording && "recording-button-active",
+            @backend_switching && "opacity-50 cursor-not-allowed"
           ]}
         >
-          <%= if @recording_state == :recording, do: "Stop Recording", else: "Start Recording" %>
+          <%= if @backend_switching do %>
+            Backend Switching...
+          <% else %>
+            <%= if @recording_state == :recording, do: "Stop Recording", else: "Start Recording" %>
+          <% end %>
         </button>
       </div>
       
+      <!-- Conversation Display -->
       <div class="conversation-display mt-8">
         <h2 class="text-xl font-semibold mb-4">Conversation</h2>
         <div class="conversation-messages">
@@ -75,11 +162,21 @@ defmodule VoxDialogWeb.VoiceSessionLive do
             <div class={"message message-#{message.type}"}>
               <span class="message-time"><%= format_time(message.timestamp) %></span>
               <span class="message-content"><%= message.content %></span>
+              <%= if message[:clip_id] do %>
+                <span class="message-clip text-xs text-gray-500 ml-2">[Clip: <%= String.slice(message.clip_id, 0, 8) %>...]</span>
+              <% end %>
+            </div>
+          <% end %>
+          
+          <%= if length(@conversation_history) == 0 do %>
+            <div class="empty-conversation text-center py-8 text-gray-500">
+              <p>No conversation yet. Click "Start Recording" to begin.</p>
             </div>
           <% end %>
         </div>
       </div>
       
+      <!-- Environmental Sounds -->
       <%= if length(@detected_sounds) > 0 do %>
         <div class="environmental-sounds mt-8">
           <h2 class="text-xl font-semibold mb-4">Detected Sounds</h2>
@@ -102,6 +199,10 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         max-width: 800px;
         margin: 0 auto;
         padding: 2rem;
+      }
+      
+      .backend-controls {
+        border: 1px solid #e5e7eb;
       }
       
       .recording-indicator {
@@ -144,9 +245,11 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         background-color: #3b82f6;
         border-radius: 0.5rem;
         transition: background-color 0.2s;
+        border: none;
+        cursor: pointer;
       }
       
-      .recording-button:hover {
+      .recording-button:hover:not(:disabled) {
         background-color: #2563eb;
       }
       
@@ -154,7 +257,7 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         background-color: #ef4444;
       }
       
-      .recording-button-active:hover {
+      .recording-button-active:hover:not(:disabled) {
         background-color: #dc2626;
       }
       
@@ -181,6 +284,11 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         background-color: #f3f4f6;
       }
       
+      .message-system {
+        background-color: #fef3c7;
+        font-style: italic;
+      }
+      
       .message-time {
         font-size: 0.75rem;
         color: #6b7280;
@@ -196,26 +304,52 @@ defmodule VoxDialogWeb.VoiceSessionLive do
         display: flex;
         justify-content: space-between;
       }
+      
+      .empty-conversation {
+        background-color: #f9fafb;
+        border: 2px dashed #d1d5db;
+        border-radius: 0.5rem;
+      }
     </style>
     """
   end
 
   @impl true
   def handle_event("toggle_recording", _params, socket) do
-    case socket.assigns.recording_state do
-      :idle ->
-        # Send start_recording event to JavaScript hook
-        {:noreply, 
-         socket
-         |> assign(recording_state: :recording)
-         |> push_event("start_recording", %{})}
-        
-      :recording ->
-        # Send stop_recording event to JavaScript hook
-        {:noreply, 
-         socket
-         |> assign(recording_state: :idle)
-         |> push_event("stop_recording", %{})}
+    if socket.assigns.backend_switching do
+      {:noreply, put_flash(socket, :warning, "Please wait for backend switch to complete")}
+    else
+      case socket.assigns.recording_state do
+        :idle ->
+          # Send start_recording event to JavaScript hook
+          {:noreply, 
+           socket
+           |> assign(recording_state: :recording)
+           |> push_event("start_recording", %{})}
+          
+        :recording ->
+          # Send stop_recording event to JavaScript hook
+          {:noreply, 
+           socket
+           |> assign(recording_state: :idle)
+           |> push_event("stop_recording", %{})}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("switch_backend", %{"backend" => backend_str}, socket) do
+    backend_type = String.to_atom(backend_str)
+    
+    if backend_type in socket.assigns.available_backends do
+      {:noreply, 
+       socket
+       |> assign(backend_switching: true)
+       |> start_async(:switch_backend, fn -> 
+         VoxDialog.SpeechRecognition.switch_backend(backend_type)
+       end)}
+    else
+      {:noreply, put_flash(socket, :error, "Backend not available: #{backend_str}")}
     end
   end
 
@@ -264,6 +398,39 @@ defmodule VoxDialogWeb.VoiceSessionLive do
   def handle_event("audio_level", %{"level" => level}, socket) do
     # Update audio level without logging to avoid log spam
     {:noreply, assign(socket, audio_level: level)}
+  end
+
+  @impl true
+  def handle_async(:switch_backend, {:ok, result}, socket) do
+    case result do
+      :ok ->
+        # Get updated backend info
+        case VoxDialog.SpeechRecognition.get_backend_info() do
+          {:ok, info} ->
+            {:noreply, 
+             socket
+             |> assign(backend_switching: false, current_backend: info)
+             |> put_flash(:info, "Successfully switched to #{info.name}")}
+          _ ->
+            {:noreply, 
+             socket
+             |> assign(backend_switching: false)
+             |> put_flash(:info, "Backend switched successfully")}
+        end
+      {:error, reason} ->
+        {:noreply, 
+         socket
+         |> assign(backend_switching: false)
+         |> put_flash(:error, "Failed to switch backend: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_async(:switch_backend, {:exit, reason}, socket) do
+    {:noreply, 
+     socket
+     |> assign(backend_switching: false)
+     |> put_flash(:error, "Backend switch failed: #{inspect(reason)}")}
   end
 
   @impl true
