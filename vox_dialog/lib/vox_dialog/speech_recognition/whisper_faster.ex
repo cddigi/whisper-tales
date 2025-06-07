@@ -1,7 +1,7 @@
 defmodule VoxDialog.SpeechRecognition.WhisperFaster do
   @moduledoc """
   Faster Whisper backend implementation using ctranslate2.
-  Always uses float32 compute type for consistency.
+  Uses ctranslate2-4you repositories for all models.
   """
   
   @behaviour VoxDialog.SpeechRecognition.WhisperBackend
@@ -18,7 +18,7 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
     # Encode audio data as base64
     base64_audio = Base.encode64(audio_data)
     
-    # Build command arguments (no compute-type argument since it's hardcoded to float32)
+    # Build command arguments
     args = build_command_args(base64_audio, config, language)
     
     case System.cmd("uv", args, stderr_to_stdout: true) do
@@ -27,7 +27,7 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
           {:ok, %{"error" => error}} ->
             {:error, error}
           {:ok, %{"text" => text} = result} ->
-            # Log additional metadata
+            # Log additional metadata including model repository
             Logger.debug("Faster Whisper result: #{inspect(Map.drop(result, ["text"]))}")
             {:ok, text}
           {:error, _} ->
@@ -50,13 +50,20 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
 
   @impl true
   def get_info do
+    # Get available models
+    available_models = case get_available_models() do
+      {:ok, models} -> models
+      _ -> ["tiny", "base", "small", "medium", "large"]  # Fallback
+    end
+    
     %{
-      name: "Faster Whisper",
+      name: "Faster Whisper (ctranslate2-4you)",
       backend: :faster,
-      description: "Optimized Whisper implementation using ctranslate2 (float32)",
-      features: ["Faster inference", "Lower memory usage", "VAD filtering", "Beam search"],
-      models: ["tiny", "base", "small", "medium", "large"],
-      compute_type: "float32"  # Always float32
+      description: "Optimized Whisper implementation using ctranslate2 float32 models",
+      features: ["Faster inference", "Lower memory usage", "VAD filtering", "Beam search", "English-only models", "Distil models"],
+      models: available_models,
+      compute_type: "float32",
+      repository: "ctranslate2-4you"
     }
   end
 
@@ -81,6 +88,19 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
   @impl true
   def cleanup(_state) do
     :ok
+  end
+
+  # Public function to get available models
+  def get_available_models do
+    case System.cmd("uv", ["run", "python", "whisper_faster.py", "--list-models"], stderr_to_stdout: true) do
+      {output, 0} ->
+        case Jason.decode(output) do
+          {:ok, %{"available_models" => models}} -> {:ok, models}
+          _ -> {:error, :failed_to_parse_models}
+        end
+      _ ->
+        {:error, :failed_to_get_models}
+    end
   end
 
   # Private functions
