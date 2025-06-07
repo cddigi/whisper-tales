@@ -620,9 +620,8 @@ defmodule VoxDialogWeb.ModuleDashboardLive do
   end
   
   @impl true
-  def handle_info({:module_loaded, %{module_id: module_id} = event_data}, socket) do
+  def handle_info({:module_loaded, module_id}, socket) do
     Logger.info("Module loaded event received: #{module_id}")
-    Logger.debug("Module event data: #{inspect(event_data)}")
     # Module is already loaded by ModuleManager, just update UI if needed
     {:noreply, socket}
   end
