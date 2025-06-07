@@ -4,6 +4,28 @@ import Config
 config :vox_dialog,
   huggingface_token: System.get_env("HUGGINGFACE_TOKEN")
 
+config :vox_dialog, :whisper,
+  backend: :faster,  # :vanilla or :faster
+  fallback_backend: :vanilla,
+  faster_whisper: %{
+    model_size: "tiny",  # Can be any model from the available list
+    compute_type: "float32",  # Always use float32 for consistency
+    beam_size: 5,
+    vad_filter: true,
+    language: "en",  # or "auto" for detection
+    cpu_threads: nil,  # nil = auto-detect
+    vad_parameters: %{
+      threshold: 0.5,
+      min_speech_duration_ms: 250,
+      max_speech_duration_s: 30,
+      min_silence_duration_ms: 2000,
+      speech_pad_ms: 400
+    }
+  },
+  vanilla_whisper: %{
+    model: "tiny"
+  }
+
 # Configure your database
 config :vox_dialog, VoxDialog.Repo,
   username: "postgres",

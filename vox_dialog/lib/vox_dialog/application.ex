@@ -20,7 +20,7 @@ defmodule VoxDialog.Application do
       {Registry, keys: :unique, name: VoxDialog.SessionRegistry},
       # Voice processing session supervisor
       VoxDialog.VoiceProcessing.SessionSupervisor,
-      # Whisper model server (loads model asynchronously)
+      # Whisper model server (loads configurable backend asynchronously)
       VoxDialog.SpeechRecognition.WhisperServer,
       # Chatterbox TTS server (checks server availability asynchronously)
       VoxDialog.SpeechSynthesis.ChatterboxServer,

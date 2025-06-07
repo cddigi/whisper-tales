@@ -1,30 +1,31 @@
 defmodule VoxDialog.SpeechRecognition do
   @moduledoc """
-  Local speech recognition service using Bumblebee with Whisper models.
+  Local speech recognition service using configurable Whisper backends.
   Handles audio transcription locally without external API dependencies.
   """
   
   require Logger
   
   @doc """
-  Transcribes an audio clip using a local Whisper model.
+  Transcribes an audio clip using the configured Whisper backend.
   
   ## Parameters
   - audio_clip: %AudioClip{} struct with audio_data
+  - opts: Optional backend-specific options
   
   ## Returns
   - {:ok, transcription_text} on success
   - {:error, reason} on failure
   """
-  def transcribe_audio_clip(audio_clip) do
-    Logger.info("Starting local transcription for clip #{audio_clip.clip_id}")
+  def transcribe_audio_clip(audio_clip, opts \\ %{}) do
+    Logger.info("Starting transcription for clip #{audio_clip.clip_id}")
     
     # Update status to processing
     VoxDialog.Voice.update_audio_clip(audio_clip, %{transcription_status: "processing"})
     
     case prepare_audio_for_transcription(audio_clip.audio_data, audio_clip.format) do
       {:ok, processed_audio} ->
-        case transcribe_with_local_model(processed_audio) do
+        case transcribe_with_backend(processed_audio, opts) do
           {:ok, transcription} ->
             # Update clip with successful transcription
             VoxDialog.Voice.update_audio_clip(audio_clip, %{
@@ -55,17 +56,18 @@ defmodule VoxDialog.SpeechRecognition do
   ## Parameters
   - audio_data: Binary audio data
   - format: Audio format (e.g., "webm", "wav")
+  - opts: Optional backend-specific options
   
   ## Returns
   - {:ok, transcription_text} on success
   - {:error, reason} on failure
   """
-  def transcribe_audio(audio_data, format \\ "webm") do
+  def transcribe_audio(audio_data, format \\ "webm", opts \\ %{}) do
     Logger.info("Transcribing raw audio data, size: #{byte_size(audio_data)} bytes, format: #{format}")
     
     case prepare_audio_for_transcription(audio_data, format) do
       {:ok, processed_audio} ->
-        transcribe_with_local_model(processed_audio)
+        transcribe_with_backend(processed_audio, opts)
         
       {:error, reason} ->
         Logger.error("Failed to prepare raw audio: #{inspect(reason)}")
@@ -76,7 +78,7 @@ defmodule VoxDialog.SpeechRecognition do
   @doc """
   Processes a batch of pending audio clips for transcription.
   """
-  def process_pending_transcriptions(limit \\ 10) do
+  def process_pending_transcriptions(limit \\ 10, backend_type \\ nil) do
     alias VoxDialog.Voice.AudioClip
     import Ecto.Query
     
@@ -89,6 +91,14 @@ defmodule VoxDialog.SpeechRecognition do
     )
     
     Logger.info("Processing #{length(pending_clips)} pending transcriptions")
+    
+    # Switch backend if specified
+    if backend_type do
+      case VoxDialog.SpeechRecognition.WhisperServer.switch_backend(backend_type) do
+        :ok -> Logger.info("Switched to #{backend_type} backend for batch processing")
+        {:error, reason} -> Logger.warning("Failed to switch backend: #{inspect(reason)}")
+      end
+    end
     
     # Process each clip
     results = Enum.map(pending_clips, fn clip ->
@@ -107,7 +117,7 @@ defmodule VoxDialog.SpeechRecognition do
   end
 
   @doc """
-  Checks if the Whisper model is ready for transcription.
+  Checks if the Whisper backend is ready for transcription.
   """
   def model_ready? do
     VoxDialog.SpeechRecognition.WhisperServer.ready?()
@@ -120,13 +130,33 @@ defmodule VoxDialog.SpeechRecognition do
     VoxDialog.SpeechRecognition.WhisperServer.status()
   end
 
+  @doc """
+  Gets information about the current backend.
+  """
+  def get_backend_info do
+    VoxDialog.SpeechRecognition.WhisperServer.get_backend_info()
+  end
+
+  @doc """
+  Gets list of available backends.
+  """
+  def available_backends do
+    VoxDialog.SpeechRecognition.WhisperServer.available_backends()
+  end
+
+  @doc """
+  Switch to a different backend.
+  """
+  def switch_backend(backend_type) do
+    VoxDialog.SpeechRecognition.WhisperServer.switch_backend(backend_type)
+  end
+
   # Private Functions
 
   defp prepare_audio_for_transcription(audio_data, format) do
     case format do
       "webm" ->
-        # For webm, we need to convert to a format Nx can handle
-        # For now, we'll try to use it directly and see what happens
+        # For webm, we need to convert to a format the backend can handle
         {:ok, audio_data}
         
       "wav" ->
@@ -140,14 +170,14 @@ defmodule VoxDialog.SpeechRecognition do
     end
   end
 
-  defp transcribe_with_local_model(audio_data) do
-    # Use the WhisperServer GenServer for transcription (with longer timeout for large audio files)
+  defp transcribe_with_backend(audio_data, opts) do
+    # Use the WhisperServer GenServer for transcription
     try do
       case VoxDialog.SpeechRecognition.WhisperServer.transcribe(audio_data) do
         {:ok, text} ->
           {:ok, text}
         {:error, :model_not_loaded} ->
-          Logger.error("Whisper model not loaded yet. Please wait for model to finish loading.")
+          Logger.error("Whisper backend not loaded yet. Please wait for backend to finish loading.")
           {:error, :model_not_loaded}
         {:error, :audio_too_large} ->
           Logger.error("Audio file too large for transcription (max 25MB)")
@@ -165,5 +195,4 @@ defmodule VoxDialog.SpeechRecognition do
         {:error, :unexpected_error}
     end
   end
-
 end
