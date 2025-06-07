@@ -1,14 +1,14 @@
 defmodule VoxDialog.SpeechRecognition.WhisperFaster do
   @moduledoc """
   Faster Whisper backend implementation using ctranslate2.
-  Provides optimized inference with lower memory usage.
+  Always uses float32 compute type for consistency.
   """
   
   @behaviour VoxDialog.SpeechRecognition.WhisperBackend
   
   require Logger
   
-  defstruct [:config, :model_size, :compute_type, :beam_size, :vad_filter, :vad_parameters]
+  defstruct [:config, :model_size, :beam_size, :vad_filter, :vad_parameters, :language]
 
   @impl true
   def transcribe(audio_data, opts \\ %{}) do
@@ -18,7 +18,7 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
     # Encode audio data as base64
     base64_audio = Base.encode64(audio_data)
     
-    # Build command arguments
+    # Build command arguments (no compute-type argument since it's hardcoded to float32)
     args = build_command_args(base64_audio, config, language)
     
     case System.cmd("uv", args, stderr_to_stdout: true) do
@@ -53,10 +53,10 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
     %{
       name: "Faster Whisper",
       backend: :faster,
-      description: "Optimized Whisper implementation using ctranslate2",
+      description: "Optimized Whisper implementation using ctranslate2 (float32)",
       features: ["Faster inference", "Lower memory usage", "VAD filtering", "Beam search"],
-      models: ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v3"],
-      compute_types: ["int8", "bfloat16", "float16", "float32", "auto"]
+      models: ["tiny", "base", "small", "medium", "large"],
+      compute_type: "float32"  # Always float32
     }
   end
 
@@ -67,10 +67,10 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
         state = %__MODULE__{
           config: config,
           model_size: Map.get(config, :model_size, "tiny"),
-          compute_type: Map.get(config, :compute_type, "float32"),
           beam_size: Map.get(config, :beam_size, 5),
           vad_filter: Map.get(config, :vad_filter, true),
-          vad_parameters: Map.get(config, :vad_parameters, %{})
+          vad_parameters: Map.get(config, :vad_parameters, %{}),
+          language: Map.get(config, :language, "en")
         }
         {:ok, state}
       error ->
@@ -89,7 +89,6 @@ defmodule VoxDialog.SpeechRecognition.WhisperFaster do
     base_args = [
       "run", "python", "whisper_faster.py", base64_audio,
       "--model", Map.get(config, :model_size, "tiny"),
-      "--compute-type", Map.get(config, :compute_type, "auto"),
       "--beam-size", to_string(Map.get(config, :beam_size, 5)),
       "--language", language,
       "--input-type", "base64"
