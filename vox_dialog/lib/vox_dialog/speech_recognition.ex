@@ -22,6 +22,7 @@ defmodule VoxDialog.SpeechRecognition do
     # Update status to processing
     VoxDialog.Voice.update_audio_clip(audio_clip, %{transcription_status: "processing"})
     
+<<<<<<< ours
     case prepare_audio_for_transcription(audio_clip.audio_data, audio_clip.format) do
       {:ok, processed_audio} ->
         case transcribe_with_local_model(processed_audio) do
@@ -41,10 +42,44 @@ defmodule VoxDialog.SpeechRecognition do
             Logger.error("Failed to transcribe clip #{audio_clip.clip_id}: #{inspect(reason)}")
             {:error, reason}
         end
+||||||| ancestor
+    case prepare_audio_for_transcription(audio_clip.audio_data, audio_clip.format) do
+      {:ok, processed_audio} ->
+        case transcribe_with_backend(processed_audio, opts) do
+          {:ok, transcription} ->
+            # Update clip with successful transcription
+            VoxDialog.Voice.update_audio_clip(audio_clip, %{
+              transcription_status: "completed",
+              transcribed_text: transcription
+            })
+            
+            Logger.info("Successfully transcribed clip #{audio_clip.clip_id}: #{String.slice(transcription, 0, 50)}...")
+            {:ok, transcription}
+            
+          {:error, reason} ->
+            # Update status to failed
+            VoxDialog.Voice.update_audio_clip(audio_clip, %{transcription_status: "failed"})
+            Logger.error("Failed to transcribe clip #{audio_clip.clip_id}: #{inspect(reason)}")
+            {:error, reason}
+        end
+=======
+    {:ok, processed_audio} = prepare_audio_for_transcription(audio_clip.audio_data, audio_clip.format)
+    case transcribe_with_backend(processed_audio, opts) do
+      {:ok, transcription} ->
+        # Update clip with successful transcription
+        VoxDialog.Voice.update_audio_clip(audio_clip, %{
+          transcription_status: "completed",
+          transcribed_text: transcription
+        })
+        
+        Logger.info("Successfully transcribed clip #{audio_clip.clip_id}: #{String.slice(transcription, 0, 50)}...")
+        {:ok, transcription}
+>>>>>>> theirs
         
       {:error, reason} ->
+        # Update status to failed
         VoxDialog.Voice.update_audio_clip(audio_clip, %{transcription_status: "failed"})
-        Logger.error("Failed to prepare audio for clip #{audio_clip.clip_id}: #{inspect(reason)}")
+        Logger.error("Failed to transcribe clip #{audio_clip.clip_id}: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -63,6 +98,7 @@ defmodule VoxDialog.SpeechRecognition do
   def transcribe_audio(audio_data, format \\ "webm") do
     Logger.info("Transcribing raw audio data, size: #{byte_size(audio_data)} bytes, format: #{format}")
     
+<<<<<<< ours
     case prepare_audio_for_transcription(audio_data, format) do
       {:ok, processed_audio} ->
         transcribe_with_local_model(processed_audio)
@@ -71,6 +107,19 @@ defmodule VoxDialog.SpeechRecognition do
         Logger.error("Failed to prepare raw audio: #{inspect(reason)}")
         {:error, reason}
     end
+||||||| ancestor
+    case prepare_audio_for_transcription(audio_data, format) do
+      {:ok, processed_audio} ->
+        transcribe_with_local_model(processed_audio)
+        
+      {:error, reason} ->
+        Logger.error("Failed to prepare raw audio: #{inspect(reason)}")
+        {:error, reason}
+    end
+=======
+    {:ok, processed_audio} = prepare_audio_for_transcription(audio_data, format)
+    transcribe_with_backend(processed_audio, opts)
+>>>>>>> theirs
   end
 
   @doc """
@@ -140,8 +189,16 @@ defmodule VoxDialog.SpeechRecognition do
     end
   end
 
+<<<<<<< ours
   defp transcribe_with_local_model(audio_data) do
     # Use the WhisperServer GenServer for transcription (with longer timeout for large audio files)
+||||||| ancestor
+  defp transcribe_with_backend(audio_data, opts) do
+    # Use the WhisperServer GenServer for transcription
+=======
+  defp transcribe_with_backend(audio_data, _opts) do
+    # Use the WhisperServer GenServer for transcription
+>>>>>>> theirs
     try do
       case VoxDialog.SpeechRecognition.WhisperServer.transcribe(audio_data) do
         {:ok, text} ->
@@ -160,8 +217,8 @@ defmodule VoxDialog.SpeechRecognition do
       :exit, {:timeout, _} ->
         Logger.error("Transcription timed out after 2 minutes - audio may be too long or complex")
         {:error, :transcription_timeout}
-      error ->
-        Logger.error("Unexpected error during transcription: #{inspect(error)}")
+      kind, error ->
+        Logger.error("Unexpected error during transcription (#{kind}): #{inspect(error)}")
         {:error, :unexpected_error}
     end
   end
