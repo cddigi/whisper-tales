@@ -65,21 +65,21 @@ defmodule VoxDialog.SpeechRecognition.WhisperFactory do
   # Private functions
 
   defp get_configured_backend do
-    Application.get_env(:vox_dialog, :whisper, %{})
-    |> Map.get(:backend, :faster)
+    Application.get_env(:vox_dialog, :whisper, [])
+    |> Keyword.get(:backend, :faster)
   end
 
   defp get_fallback_backend do
-    Application.get_env(:vox_dialog, :whisper, %{})
-    |> Map.get(:fallback_backend, :vanilla)
+    Application.get_env(:vox_dialog, :whisper, [])
+    |> Keyword.get(:fallback_backend, :vanilla)
   end
 
   defp get_backend_config(backend_type) do
-    whisper_config = Application.get_env(:vox_dialog, :whisper, %{})
+    whisper_config = Application.get_env(:vox_dialog, :whisper, [])
     
     case backend_type do
-      :vanilla -> Map.get(whisper_config, :vanilla_whisper, %{})
-      :faster -> Map.get(whisper_config, :faster_whisper, %{})
+      :vanilla -> Keyword.get(whisper_config, :vanilla_whisper, %{})
+      :faster -> Keyword.get(whisper_config, :faster_whisper, %{})
       _ -> %{}
     end
   end

@@ -56,7 +56,7 @@ defmodule VoxDialog.ModuleManager do
       nil ->
         {:reply, {:error, :module_not_found}, state}
       
-      module ->
+      module_impl ->
         # Add backend configuration for STT module
         enhanced_opts = case module_id do
           "stt" ->
@@ -76,12 +76,12 @@ defmodule VoxDialog.ModuleManager do
             opts
         end
         
-        case module.initialize(enhanced_opts) do
+        case apply(module_impl, :initialize, [enhanced_opts]) do
           {:ok, module_state} ->
             Logger.info("Loaded module: #{module_id}")
             
             new_state = state
-            |> put_in([:loaded_modules, module_id], module)
+            |> put_in([:loaded_modules, module_id], module_impl)
             |> put_in([:module_states, module_id], module_state)
             
             # Broadcast module loaded event with backend info

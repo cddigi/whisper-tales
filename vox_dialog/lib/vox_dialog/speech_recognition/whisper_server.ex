@@ -96,12 +96,11 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
   end
 
   @impl true
-  def handle_call({:transcribe, audio_data}, _from, %{model_loaded?: false} = state) do
+  def handle_call({:transcribe, _audio_data}, _from, %{model_loaded?: false} = state) do
     {:reply, {:error, :model_not_loaded}, state}
   end
 
-  @impl true
-  def handle_call({:transcribe, audio_data}, _from, %{backend_module: module, backend_state: backend_state} = state) do
+  def handle_call({:transcribe, audio_data}, _from, %{backend_module: module, backend_state: _backend_state} = state) do
     # Add size check to prevent very large audio files from timing out
     audio_size_mb = byte_size(audio_data) / (1024 * 1024)
     
@@ -199,11 +198,11 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
   # Private Functions
 
   defp get_backend_config(backend_type) do
-    whisper_config = Application.get_env(:vox_dialog, :whisper, %{})
+    whisper_config = Application.get_env(:vox_dialog, :whisper, [])
     
     case backend_type do
-      :vanilla -> Map.get(whisper_config, :vanilla_whisper, %{})
-      :faster -> Map.get(whisper_config, :faster_whisper, %{})
+      :vanilla -> Keyword.get(whisper_config, :vanilla_whisper, %{})
+      :faster -> Keyword.get(whisper_config, :faster_whisper, %{})
       _ -> %{}
     end
   end
