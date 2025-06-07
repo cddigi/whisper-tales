@@ -92,22 +92,3 @@ def cleanup_temp_files(*file_paths):
                 os.remove(file_path)
             except Exception as e:
                 print(f"Warning: Failed to remove temp file {file_path}: {e}", file=sys.stderr)
-
-def get_compute_type_for_device(device, requested_compute_type="auto"):
-    """Get appropriate compute type for device"""
-    if requested_compute_type != "auto":
-        return requested_compute_type
-    
-    if device == "cuda":
-        # Check if GPU supports float16
-        try:
-            if torch.cuda.get_device_capability()[0] >= 7:  # Volta or newer
-                return "float16"
-            else:
-                return "float32"
-        except:
-            return "float32"
-    elif device == "mps":
-        return "float32"  # MPS generally supports float16
-    else:
-        return "float32"  # CPU works best with int8
