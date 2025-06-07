@@ -8,6 +8,10 @@ defmodule VoxDialog.SpeechRecognition.TranscriptionWorker do
   require Logger
   
   alias VoxDialog.SpeechRecognition
+  alias VoxDialog.Voice.AudioClip
+  alias VoxDialog.Repo
+  
+  import Ecto.Query
 
   @process_interval_ms 5000  # Check for new clips every 5 seconds
   @max_concurrent_jobs 3     # Maximum concurrent transcription jobs

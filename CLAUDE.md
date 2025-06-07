@@ -1,1 +1,0 @@
-- remember to use `source .venv/bin/activate` before using python to activate the virtual environment and `deactivate` when done.

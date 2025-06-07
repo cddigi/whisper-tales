@@ -204,7 +204,7 @@ defmodule VoxDialog.SpeechSynthesis.ChatterboxServer do
     end
   end
 
-  defp perform_synthesis(text, options) do
+  defp perform_synthesis(text, options \\ %{}) do
     Logger.info("Starting TTS synthesis for text: #{String.slice(text, 0, 50)}...")
     
     # Use the enhanced Python TTS script with accent and voice settings
@@ -275,7 +275,7 @@ defmodule VoxDialog.SpeechSynthesis.ChatterboxServer do
     end
   end
 
-  defp synthesize_with_python(text, options) do
+  defp synthesize_with_python(text, options \\ %{}) do
     # Create a temporary file for the output
     temp_dir = System.tmp_dir!()
     temp_filename = "chatterbox_#{:rand.uniform(999999)}.wav"
