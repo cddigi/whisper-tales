@@ -13,6 +13,29 @@ from whisper_common import (
     convert_to_wav_if_needed, cleanup_temp_files
 )
 
+# Model repository mapping
+MODEL_REPOSITORIES = {
+    # Standard multilingual models
+    "tiny": "ctranslate2-4you/whisper-tiny-ct2-float32",
+    "base": "ctranslate2-4you/whisper-base-ct2-float32", 
+    "small": "ctranslate2-4you/whisper-small-ct2-float32",
+    "medium": "ctranslate2-4you/whisper-medium-ct2-float32",
+    "large-v3": "ctranslate2-4you/whisper-large-v3-ct2-float32",
+    "large": "ctranslate2-4you/whisper-large-v3-ct2-float32",  # Alias for large-v3
+    
+    # English-only models
+    "tiny.en": "ctranslate2-4you/whisper-tiny.en-ct2-float32",
+    "base.en": "ctranslate2-4you/whisper-base.en-ct2-float32",
+    "small.en": "ctranslate2-4you/whisper-small.en-ct2-float32", 
+    "medium.en": "ctranslate2-4you/whisper-medium.en-ct2-float32",
+    
+    # Distil models
+    "distil-small.en": "ctranslate2-4you/distil-whisper-small.en-ct2-float32",
+    "distil-medium.en": "ctranslate2-4you/distil-whisper-medium.en-ct2-float32",
+    "distil-large-v3": "ctranslate2-4you/distil-whisper-large-v3-ct2-float32",
+    "distil-large": "ctranslate2-4you/distil-whisper-large-v3-ct2-float32",  # Alias
+}
+
 def check_faster_whisper_availability():
     """Check if faster-whisper is available"""
     try:
@@ -22,16 +45,17 @@ def check_faster_whisper_availability():
     except ImportError:
         return False
 
-def get_model_path(model_size, quantization_type):
-    """Get the correct model path for faster-whisper"""
-    # Use standard model names for faster-whisper
-    # The library will automatically download from HuggingFace if needed
-    if model_size.startswith("distil-whisper"):
-        # For distil models, use the full model name
-        return model_size
+def get_model_repository(model_name):
+    """Get the Hugging Face repository for a given model name"""
+    if model_name in MODEL_REPOSITORIES:
+        return MODEL_REPOSITORIES[model_name]
     else:
-        # For standard whisper models, use simple names
-        return model_size
+        # Return None for unknown models - will cause an error
+        return None
+
+def get_available_models():
+    """Get list of available model names"""
+    return list(MODEL_REPOSITORIES.keys())
 
 def transcribe_with_faster_whisper(audio_file_path, model_size="tiny", 
                                   beam_size=5, vad_filter=True, 
@@ -46,16 +70,19 @@ def transcribe_with_faster_whisper(audio_file_path, model_size="tiny",
         # Always use float32 for consistency
         compute_type = "float32"
         
-        print(f"Loading faster-whisper model: {model_size} on {device} with {compute_type}", file=sys.stderr)
+        # Get model repository path
+        model_repo = get_model_repository(model_size)
+        if model_repo is None:
+            available_models = ", ".join(get_available_models())
+            return {"error": f"Unknown model '{model_size}'. Available models: {available_models}"}
         
-        # Get model path
-        model_path = get_model_path(model_size, compute_type)
+        print(f"Loading faster-whisper model: {model_repo} on {device} with {compute_type}", file=sys.stderr)
         
         # Initialize model with proper thread configuration
         cpu_threads = psutil.cpu_count(logical=False) if device == "cpu" else 4
         
         model = WhisperModel(
-            model_path, 
+            model_repo, 
             device=device, 
             compute_type=compute_type,
             cpu_threads=cpu_threads,
@@ -97,6 +124,7 @@ def transcribe_with_faster_whisper(audio_file_path, model_size="tiny",
             "text": full_text if full_text else "[No speech detected]",
             "backend": "faster",
             "model": model_size,
+            "model_repository": model_repo,
             "language": info.language,
             "language_probability": info.language_probability,
             "duration": info.duration,
@@ -124,8 +152,16 @@ def main():
     parser.add_argument('--vad-filter', action='store_true', help='Enable VAD filter')
     parser.add_argument('--vad-parameters', type=str, help='VAD parameters as JSON')
     parser.add_argument('--input-type', choices=['base64', 'file'], default='base64')
+    parser.add_argument('--list-models', action='store_true', help='List available models')
     
     args = parser.parse_args()
+    
+    # List models if requested
+    if args.list_models:
+        models = get_available_models()
+        result = {"available_models": models}
+        print(json.dumps(result, indent=2))
+        sys.exit(0)
     
     # Check availability
     if not check_faster_whisper_availability():
