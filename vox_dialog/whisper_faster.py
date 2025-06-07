@@ -6,41 +6,59 @@ import json
 import sys
 import os
 import tempfile
+import psutil
+import gc
 from whisper_common import (
     detect_best_device, save_audio_to_temp_file, 
-    convert_to_wav_if_needed, cleanup_temp_files,
-    get_compute_type_for_device
+    convert_to_wav_if_needed, cleanup_temp_files
 )
 
 def check_faster_whisper_availability():
     """Check if faster-whisper is available"""
     try:
         from faster_whisper import WhisperModel
+        import ctranslate2
         return True
     except ImportError:
         return False
 
+def get_model_path(model_size, quantization_type):
+    """Get the correct model path for faster-whisper"""
+    # Use standard model names for faster-whisper
+    # The library will automatically download from HuggingFace if needed
+    if model_size.startswith("distil-whisper"):
+        # For distil models, use the full model name
+        return model_size
+    else:
+        # For standard whisper models, use simple names
+        return model_size
+
 def transcribe_with_faster_whisper(audio_file_path, model_size="tiny", 
-                                  compute_type="float32", beam_size=5, 
-                                  vad_filter=True, vad_parameters=None,
-                                  language="en"):
-    """Transcribe audio using faster-whisper"""
+                                  beam_size=5, vad_filter=True, 
+                                  vad_parameters=None, language="en"):
+    """Transcribe audio using faster-whisper with float32 compute type"""
+    model = None
     try:
-        from faster_whisper import WhisperModel, download_model
+        from faster_whisper import WhisperModel
         
         device, device_info = detect_best_device()
         
-        # Get appropriate compute type for device
-        if compute_type == "auto":
-            compute_type = get_compute_type_for_device(device, "auto")
+        # Always use float32 for consistency
+        compute_type = "float32"
         
         print(f"Loading faster-whisper model: {model_size} on {device} with {compute_type}", file=sys.stderr)
         
-        # Initialize model
+        # Get model path
+        model_path = get_model_path(model_size, compute_type)
+        
+        # Initialize model with proper thread configuration
+        cpu_threads = psutil.cpu_count(logical=False) if device == "cpu" else 4
+        
         model = WhisperModel(
-            model_size, 
+            model_path, 
             device=device, 
             compute_type=compute_type,
+            cpu_threads=cpu_threads,
             download_root=None,  # Use default cache
             local_files_only=False
         )
@@ -61,9 +79,11 @@ def transcribe_with_faster_whisper(audio_file_path, model_size="tiny",
         segments, info = model.transcribe(
             audio_file_path,
             beam_size=beam_size,
-            language=language,
+            language=language if language != "auto" else None,  # Let model detect if auto
             vad_filter=vad_filter,
-            vad_parameters=vad_params
+            vad_parameters=vad_params,
+            word_timestamps=False,  # Disable for faster processing
+            condition_on_previous_text=True  # Better accuracy
         )
         
         # Collect segments
@@ -82,19 +102,25 @@ def transcribe_with_faster_whisper(audio_file_path, model_size="tiny",
             "duration": info.duration,
             "compute_type": compute_type,
             "device": device,
-            "vad_filter": vad_filter
+            "vad_filter": vad_filter,
+            "cpu_threads": cpu_threads
         }
         
     except Exception as e:
         return {"error": f"Faster Whisper transcription failed: {str(e)}"}
+    
+    finally:
+        # Proper cleanup
+        if model is not None:
+            del model
+            gc.collect()
 
 def main():
     parser = argparse.ArgumentParser(description='Faster Whisper transcription')
     parser.add_argument('audio_data', help='Base64 encoded audio data or file path')
     parser.add_argument('--model', default='tiny', help='Whisper model size')
-    parser.add_argument('--compute-type', default='auto', help='Compute type')
     parser.add_argument('--beam-size', type=int, default=5, help='Beam size')
-    parser.add_argument('--language', default='en', help='Language code')
+    parser.add_argument('--language', default='en', help='Language code (use "auto" for detection)')
     parser.add_argument('--vad-filter', action='store_true', help='Enable VAD filter')
     parser.add_argument('--vad-parameters', type=str, help='VAD parameters as JSON')
     parser.add_argument('--input-type', choices=['base64', 'file'], default='base64')
@@ -123,8 +149,8 @@ def main():
         else:
             audio_file = args.audio_data
         
-        # Convert to WAV if needed
-        wav_file = convert_to_wav_if_needed(audio_file)
+        # Convert to WAV if needed (faster-whisper prefers 16kHz)
+        wav_file = convert_to_wav_if_needed(audio_file, target_sr=16000)
         if wav_file != audio_file:
             temp_files.append(wav_file)
         
@@ -142,7 +168,6 @@ def main():
         result = transcribe_with_faster_whisper(
             wav_file, 
             model_size=args.model,
-            compute_type=args.compute_type,
             beam_size=args.beam_size,
             vad_filter=args.vad_filter,
             vad_parameters=vad_parameters,
