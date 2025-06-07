@@ -423,7 +423,7 @@ defmodule VoxDialogWeb.AudioClipsLive do
              </audio>
              
              <div class="flex gap-2 mt-4">
-               
+               <a
                  href={get_audio_data_url(@selected_clip)}
                  download={"#{@selected_clip.clip_id}.#{@selected_clip.format}"}
                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
@@ -734,7 +734,7 @@ defmodule VoxDialogWeb.AudioClipsLive do
     |> put_flash(:error, "Re-transcription crashed: #{inspect(reason)}")}
  end
 
-@impl true
+ @impl true
  def handle_info({:transcription_complete, clip_id, _transcription}, socket) do
    audio_clips = VoxDialog.Voice.list_audio_clips_for_user(socket.assigns.user_id)
    
