@@ -73,12 +73,18 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
   end
 
   @impl true
-  def handle_call({:transcribe, audio_data}, _from, %{model_loaded?: false} = state) do
+  def handle_call({:transcribe, _audio_data}, _from, %{model_loaded?: false} = state) do
     {:reply, {:error, :model_not_loaded}, state}
   end
 
   @impl true
+<<<<<<< ours
   def handle_call({:transcribe, audio_data}, _from, %{serving: serving} = state) do
+||||||| ancestor
+  def handle_call({:transcribe, audio_data}, _from, %{backend_module: module, backend_state: backend_state} = state) do
+=======
+  def handle_call({:transcribe, audio_data}, _from, %{backend_module: module, backend_state: _backend_state} = state) do
+>>>>>>> theirs
     # Add size check to prevent very large audio files from timing out
     audio_size_mb = byte_size(audio_data) / (1024 * 1024)
     
@@ -285,6 +291,7 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
     end
   end
 
+<<<<<<< ours
   defp save_audio_to_temp_file(audio_data) do
     # Detect audio format from header
     format = detect_audio_format(audio_data)
@@ -294,7 +301,15 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
     temp_dir = System.tmp_dir!()
     temp_filename = "whisper_#{:rand.uniform(999999)}.#{format}"
     temp_file_path = Path.join(temp_dir, temp_filename)
+||||||| ancestor
+  defp get_backend_config(backend_type) do
+    whisper_config = Application.get_env(:vox_dialog, :whisper, %{})
+=======
+  defp get_backend_config(backend_type) do
+    whisper_config = Application.get_env(:vox_dialog, :whisper, [])
+>>>>>>> theirs
     
+<<<<<<< ours
     try do
       case File.write(temp_file_path, audio_data) do
         :ok ->
@@ -307,6 +322,17 @@ defmodule VoxDialog.SpeechRecognition.WhisperServer do
       error ->
         Logger.error("Failed to create temp file: #{inspect(error)}")
         {:error, {:temp_file_error, error}}
+||||||| ancestor
+    case backend_type do
+      :vanilla -> Map.get(whisper_config, :vanilla_whisper, %{})
+      :faster -> Map.get(whisper_config, :faster_whisper, %{})
+      _ -> %{}
+=======
+    case backend_type do
+      :vanilla -> Keyword.get(whisper_config, :vanilla_whisper, %{})
+      :faster -> Keyword.get(whisper_config, :faster_whisper, %{})
+      _ -> %{}
+>>>>>>> theirs
     end
   end
 

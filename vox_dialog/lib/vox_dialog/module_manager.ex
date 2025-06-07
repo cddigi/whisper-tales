@@ -56,13 +56,59 @@ defmodule VoxDialog.ModuleManager do
       nil ->
         {:reply, {:error, :module_not_found}, state}
       
+<<<<<<< ours
       module ->
         case module.initialize(opts) do
+||||||| ancestor
+      module ->
+        # Add backend configuration for STT module
+        enhanced_opts = case module_id do
+          "stt" ->
+            # Handle backend_type parameter
+            backend_type = case Map.get(opts, :backend_type) do
+              backend when is_binary(backend) -> String.to_atom(backend)
+              backend when is_atom(backend) -> backend
+              _ -> nil
+            end
+            
+            if backend_type do
+              Map.put(opts, :backend_type, backend_type)
+            else
+              opts
+            end
+          _ ->
+            opts
+        end
+        
+        case module.initialize(enhanced_opts) do
+=======
+      module_impl ->
+        # Add backend configuration for STT module
+        enhanced_opts = case module_id do
+          "stt" ->
+            # Handle backend_type parameter
+            backend_type = case Map.get(opts, :backend_type) do
+              backend when is_binary(backend) -> String.to_atom(backend)
+              backend when is_atom(backend) -> backend
+              _ -> nil
+            end
+            
+            if backend_type do
+              Map.put(opts, :backend_type, backend_type)
+            else
+              opts
+            end
+          _ ->
+            opts
+        end
+        
+        case apply(module_impl, :initialize, [enhanced_opts]) do
+>>>>>>> theirs
           {:ok, module_state} ->
             Logger.info("Loaded module: #{module_id}")
             
             new_state = state
-            |> put_in([:loaded_modules, module_id], module)
+            |> put_in([:loaded_modules, module_id], module_impl)
             |> put_in([:module_states, module_id], module_state)
             
             # Broadcast module loaded event
