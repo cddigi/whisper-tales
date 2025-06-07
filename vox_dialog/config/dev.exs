@@ -4,15 +4,16 @@ import Config
 config :vox_dialog,
   huggingface_token: System.get_env("HUGGINGFACE_TOKEN")
 
-# Add to existing config/dev.exs after the huggingface_token config
 config :vox_dialog, :whisper,
   backend: :faster,  # :vanilla or :faster
   fallback_backend: :vanilla,
   faster_whisper: %{
     model_size: "tiny",
-    compute_type: "float32",  # "int8", "float16", "float32", or "auto"
+    compute_type: "float32",  # Always use float32 for consistency
     beam_size: 5,
     vad_filter: true,
+    language: "en",  # or "auto" for detection
+    cpu_threads: nil,  # nil = auto-detect
     vad_parameters: %{
       threshold: 0.5,
       min_speech_duration_ms: 250,
